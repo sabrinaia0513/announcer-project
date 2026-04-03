@@ -8,3 +8,5 @@ webdriver-manager
 beautifulsoup4
 requests
 websockets
+passlib
+bcrypt
