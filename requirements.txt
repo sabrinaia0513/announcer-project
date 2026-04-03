@@ -10,3 +10,4 @@ requests
 websockets
 passlib
 bcrypt
+python-multipart
