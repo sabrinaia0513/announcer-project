@@ -113,7 +113,7 @@ function ChatWidget({ currentUser }) {
 
   useEffect(() => {
     if (isOpen) {
-      ws.current = new WebSocket('ws://localhost:8000/ws/chat');
+      ws.current = new WebSocket('ws://announcer-project.onrender.com/ws/chat');
       ws.current.onmessage = (event) => setMessages((prev) => [...prev, JSON.parse(event.data)]);
       return () => { if (ws.current) ws.current.close(); };
     }
@@ -626,7 +626,7 @@ function App() {
   useEffect(() => {
     let wsNotify;
     if (currentUser) {
-      wsNotify = new WebSocket(`ws://localhost:8000/ws/notify/${currentUser.username}`);
+      wsNotify = new WebSocket(`ws://announcer-project.onrender.com/ws/notify/${currentUser.username}`);
       wsNotify.onmessage = (event) => {
         const data = JSON.parse(event.data);
         setNotifications((prev) => [data, ...prev]);
