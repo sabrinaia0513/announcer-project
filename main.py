@@ -154,7 +154,7 @@ def upload_file(file: UploadFile = File(...)):
     filename = f"{uuid.uuid4()}.{ext}";
     file_path = f"uploads/{filename}"
     with open(file_path, "wb") as buffer: shutil.copyfileobj(file.file, buffer)
-    return {"file_url": f"http://localhost:8000/{file_path}"}
+    return {"file_url": f"https://announcer-project.onrender.com//{file_path}"}
 
 
 @app.post("/signup")
