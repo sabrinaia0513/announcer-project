@@ -26,13 +26,14 @@ from sqlalchemy.orm import Session
 from pydantic import BaseModel
 from typing import Optional
 import os, shutil, uuid, json
-
 import database
 import auth
 
 app = FastAPI()
 app.add_middleware(CORSMiddleware, allow_origins=["*"], allow_credentials=True, allow_methods=["*"],
                    allow_headers=["*"])
+
+os.makedirs("uploads", exist_ok=True)
 
 if not os.path.exists("uploads"): os.makedirs("uploads")
 app.mount("/uploads", StaticFiles(directory="uploads"), name="uploads")
