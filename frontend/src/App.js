@@ -173,7 +173,7 @@ function LoginPage({ setCurrentUser }) {
   const handleLogin = async (e) => {
     e.preventDefault();
     try {
-      const response = await axios.post('https://announcer-project.onrender.com//login', { username: loginId, password: loginPw });
+      const response = await axios.post('https://announcer-project.onrender.com/login', { username: loginId, password: loginPw });
       const userData = { username: loginId, password: loginPw, nickname: response.data.nickname, level: response.data.level };
       localStorage.setItem('announcer_user', JSON.stringify(userData));
       setCurrentUser(userData);
@@ -185,7 +185,7 @@ function LoginPage({ setCurrentUser }) {
   const handleSignup = async (e) => {
     e.preventDefault();
     try {
-      await axios.post('https://announcer-project.onrender.com//signup', { username: loginId, nickname, password: loginPw });
+      await axios.post('https://announcer-project.onrender.com/signup', { username: loginId, nickname, password: loginPw });
       alert(`${nickname}님, 가입 완료! 이제 로그인해주세요.`);
       setNickname(''); setLoginPw(''); setIsLoginMode(true);
     } catch (error) { alert("가입 실패: 이미 존재하는 아이디입니다."); }
@@ -232,10 +232,10 @@ function WritePostPage({ currentUser }) {
       let uploadedFileUrl = null;
       if (file) {
         const formData = new FormData(); formData.append("file", file);
-        const uploadRes = await axios.post('https://announcer-project.onrender.com//upload', formData, { headers: { "Content-Type": "multipart/form-data" } });
+        const uploadRes = await axios.post('https://announcer-project.onrender.com/upload', formData, { headers: { "Content-Type": "multipart/form-data" } });
         uploadedFileUrl = uploadRes.data.file_url;
       }
-      await axios.post('https://announcer-project.onrender.com//posts', {
+      await axios.post('https://announcer-project.onrender.com/posts', {
         username: currentUser.username, password: currentUser.password, title, content, category, file_url: uploadedFileUrl,
         deadline: category === '공고' ? deadline : null, external_link: category === '공고' ? externalLink : null
       });
@@ -314,20 +314,20 @@ function Home({ currentUser }) {
   const fetchPosts = async () => {
     try {
       const skip = (currentPage - 1) * POSTS_PER_PAGE;
-      const response = await axios.get('https://announcer-project.onrender.com//posts', { params: { skip, limit: POSTS_PER_PAGE, category: selectedTab, search: searchKeyword, sort_by: sortBy } });
+      const response = await axios.get('https://announcer-project.onrender.com/posts', { params: { skip, limit: POSTS_PER_PAGE, category: selectedTab, search: searchKeyword, sort_by: sortBy } });
       setPosts(response.data.posts); setTotalPosts(response.data.total_count);
     } catch (error) {}
   };
 
   const fetchAnnouncements = async () => {
-    try { const response = await axios.get('https://announcer-project.onrender.com//announcements'); setAnnouncements(response.data); } catch (error) {}
+    try { const response = await axios.get('https://announcer-project.onrender.com/announcements'); setAnnouncements(response.data); } catch (error) {}
   };
 
   const handleGenerateScript = async () => {
     if (!currentUser) return alert("로그인이 필요합니다.");
     setIsGenerating(true);
     try {
-      const response = await axios.post('https://announcer-project.onrender.com//generate-script', { username: currentUser.username, password: currentUser.password }, { responseType: 'blob' });
+      const response = await axios.post('https://announcer-project.onrender.com/generate-script', { username: currentUser.username, password: currentUser.password }, { responseType: 'blob' });
       const url = window.URL.createObjectURL(new Blob([response.data]));
       const link = document.createElement('a'); link.href = url; link.setAttribute('download', `Script_${new Date().getTime()}.docx`); document.body.appendChild(link); link.click(); link.remove(); window.URL.revokeObjectURL(url);
     } catch (error) { alert("생성 실패"); } finally { setIsGenerating(false); }
@@ -438,18 +438,18 @@ function PostDetail({ currentUser }) {
   const [replyingTo, setReplyingTo] = useState(null);
 
   useEffect(() => { fetchPostDetail(); fetchComments(); }, [id, commentSortBy]);
-  const fetchPostDetail = async () => { try { const response = await axios.get(`https://announcer-project.onrender.com//posts/${id}`); setPost(response.data); } catch (error) { navigate('/'); } };
-  const fetchComments = async () => { try { const response = await axios.get(`https://announcer-project.onrender.com//posts/${id}/comments`, { params: { sort_by: commentSortBy } }); setComments(response.data); } catch (error) {} };
-  const handleLikePost = async () => { if (!currentUser) return alert("로그인해주세요."); try { await axios.post(`https://announcer-project.onrender.com//posts/${id}/like?username=${currentUser.username}`); fetchPostDetail(); } catch (error) {} };
-  const handleLikeComment = async (commentId) => { if (!currentUser) return alert("로그인해주세요."); try { await axios.post(`https://announcer-project.onrender.com//comments/${commentId}/like?username=${currentUser.username}`); fetchComments(); } catch (error) {} };
+  const fetchPostDetail = async () => { try { const response = await axios.get(`https://announcer-project.onrender.com/posts/${id}`); setPost(response.data); } catch (error) { navigate('/'); } };
+  const fetchComments = async () => { try { const response = await axios.get(`https://announcer-project.onrender.com/posts/${id}/comments`, { params: { sort_by: commentSortBy } }); setComments(response.data); } catch (error) {} };
+  const handleLikePost = async () => { if (!currentUser) return alert("로그인해주세요."); try { await axios.post(`https://announcer-project.onrender.com/posts/${id}/like?username=${currentUser.username}`); fetchPostDetail(); } catch (error) {} };
+  const handleLikeComment = async (commentId) => { if (!currentUser) return alert("로그인해주세요."); try { await axios.post(`https://announcer-project.onrender.com/comments/${commentId}/like?username=${currentUser.username}`); fetchComments(); } catch (error) {} };
 
   const handleAddComment = async () => {
     if (!currentUser) return alert("로그인이 필요합니다.");
     if (!newComment.trim()) return alert("내용을 입력하세요.");
-    try { await axios.post('https://announcer-project.onrender.com//comments', { username: currentUser.username, password: currentUser.password, post_id: id, content: newComment, parent_id: replyingTo }); setNewComment(''); setReplyingTo(null); fetchComments(); } catch (error) { alert("댓글 작성 실패"); }
+    try { await axios.post('https://announcer-project.onrender.com/comments', { username: currentUser.username, password: currentUser.password, post_id: id, content: newComment, parent_id: replyingTo }); setNewComment(''); setReplyingTo(null); fetchComments(); } catch (error) { alert("댓글 작성 실패"); }
   };
-  const handleDeletePost = async () => { if (!window.confirm("삭제하시겠습니까?")) return; try { await axios.delete(`https://announcer-project.onrender.com//posts/${id}?username=${currentUser.username}`); alert("삭제됨"); navigate('/'); } catch (error) {} };
-  const handleDeleteComment = async (commentId) => { if (!window.confirm("삭제하시겠습니까?")) return; try { await axios.delete(`https://announcer-project.onrender.com//comments/${commentId}?username=${currentUser.username}`); fetchComments(); } catch (error) {} };
+  const handleDeletePost = async () => { if (!window.confirm("삭제하시겠습니까?")) return; try { await axios.delete(`https://announcer-project.onrender.com/posts/${id}?username=${currentUser.username}`); alert("삭제됨"); navigate('/'); } catch (error) {} };
+  const handleDeleteComment = async (commentId) => { if (!window.confirm("삭제하시겠습니까?")) return; try { await axios.delete(`https://announcer-project.onrender.com/comments/${commentId}?username=${currentUser.username}`); fetchComments(); } catch (error) {} };
 
   if (!post) return <div className="text-center py-20 font-bold text-gray-500">로딩 중...</div>;
   const isPostLiked = currentUser && post.좋아요누른사람들.includes(currentUser.nickname);
@@ -556,7 +556,7 @@ function MyPage({ currentUser, setCurrentUser }) {
 
   useEffect(() => {
     if (!currentUser) { alert("로그인이 필요합니다."); navigate('/'); return; }
-    const fetchActivity = async () => { try { const response = await axios.get(`https://announcer-project.onrender.com//users/${currentUser.username}/activity`); setActivity(response.data); } catch (error) {} };
+    const fetchActivity = async () => { try { const response = await axios.get(`https://announcer-project.onrender.com/users/${currentUser.username}/activity`); setActivity(response.data); } catch (error) {} };
     fetchActivity();
   }, [currentUser, navigate]);
 
@@ -564,7 +564,7 @@ function MyPage({ currentUser, setCurrentUser }) {
     e.preventDefault();
     if (!newNickname && !newPassword) return alert("변경할 내용을 입력해주세요.");
     try {
-      const response = await axios.put(`https://announcer-project.onrender.com//users/${currentUser.username}`, { new_nickname: newNickname, new_password: newPassword });
+      const response = await axios.put(`https://announcer-project.onrender.com/users/${currentUser.username}`, { new_nickname: newNickname, new_password: newPassword });
       alert("정보 수정 완료!");
       const updatedUser = { ...currentUser, nickname: response.data.new_nickname };
       if (newPassword) updatedUser.password = newPassword;
