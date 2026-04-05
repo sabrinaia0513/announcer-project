@@ -28,6 +28,15 @@ from typing import Optional
 import os, shutil, uuid, json
 import database
 import auth
+from fastapi import APIRouter, Depends, HTTPException
+from fastapi.responses import StreamingResponse
+from docx.shared import Pt, RGBColor
+from docx.oxml.ns import qn
+
+# 본인 프로젝트에 맞게 auth, database, get_db 등은 기존대로 import 되어 있어야 합니다.
+import auth
+import database
+from database import get_db
 
 app = FastAPI()
 app.add_middleware(CORSMiddleware, allow_origins=["*"], allow_credentials=True, allow_methods=["*"],
@@ -420,8 +429,7 @@ class GenerateRequest(BaseModel):
     username: str
     password: str
 
-
-# 💡 크롤링을 도와주는 헬퍼 함수들
+# 💡 크롤링을 도와주는 헬퍼 함수들 (click_more_button은 이제 필요 없어서 삭제됨!)
 def parse_time_to_seconds(time_str):
     try:
         parts = time_str.split(':')
@@ -429,21 +437,10 @@ def parse_time_to_seconds(time_str):
     except:
         return 999
 
-
 def clean_script(text):
     text = re.sub(r'#\w+', '', text)
     if "연합뉴스TV 기사문의" in text: text = text.split("연합뉴스TV 기사문의")[0]
     return text.strip()
-
-
-def click_more_button(driver, wait):
-    try:
-        btn = wait.until(EC.presence_of_element_located((By.CSS_SELECTOR, "button[class*='button_more']")))
-        driver.execute_script("arguments[0].click();", btn)
-        time.sleep(0.5)
-    except:
-        pass
-
 
 def set_style(run, font_name="Malgun Gothic", size=13, bold=False, color_rgb=None):
     run.font.name = font_name
@@ -453,22 +450,16 @@ def set_style(run, font_name="Malgun Gothic", size=13, bold=False, color_rgb=Non
     if color_rgb: run.font.color.rgb = color_rgb
 
 
-@app.post("/generate-script", summary="MBC/연합뉴스 셀레니움 크롤링 원고 생성")
+@app.post("/generate-script", summary="MBC/연합뉴스 BeautifulSoup 크롤링 원고 생성")
 def generate_script(req: GenerateRequest, db: Session = Depends(get_db)):
     user = db.query(database.User).filter(database.User.username == req.username).first()
     if not user or not auth.verify_password(req.password, user.hashed_password):
         raise HTTPException(status_code=401, detail="인증 실패")
 
-    # 1. 셀레니움 백그라운드(화면 없는) 실행 옵션 세팅
-    options = Options()
-    options.add_argument("--headless=new")
-    options.add_argument("--no-sandbox")
-    options.add_argument("--disable-dev-shm-usage")
-    options.add_argument("--window-size=1920,1080")
-    options.add_argument(
-        "user-agent=Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36")
-
-    driver = webdriver.Chrome(service=Service(ChromeDriverManager().install()), options=options)
+    # 1. 네이버가 봇으로 인식하지 않게 사람처럼 위장하는 헤더 설정
+    headers = {
+        "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36"
+    }
 
     # 2. 워드 문서 뼈대 만들기
     doc = Document()
@@ -481,38 +472,42 @@ def generate_script(req: GenerateRequest, db: Session = Depends(get_db)):
         # [1] MBC 앵커멘트 수집 (딱 3개)
         # ----------------------------------------------------
         doc.add_heading('■ 앵커멘트 (총 3개 / 출처: MBC)', level=1)
-        driver.get("https://tv.naver.com/imnews?tab=clip")
-        time.sleep(3)
+        res_mbc = requests.get("https://tv.naver.com/imnews?tab=clip", headers=headers)
+        soup_mbc = BeautifulSoup(res_mbc.text, 'html.parser')
 
         target_links = []
-        while len(target_links) < 10:  # 여유있게 링크 확보
-            items = driver.find_elements(By.CSS_SELECTOR, "a.ClipCardV2_link_thumbnail__NWYf1")
-            for item in items:
-                if len(target_links) >= 10: break
-                try:
-                    sec = parse_time_to_seconds(
-                        item.find_element(By.CSS_SELECTOR, "span.ClipCardV2_playtime__IHYFQ").text)
-                    link = item.get_attribute("href")
-                    if 140 <= sec <= 170 and link not in target_links:
-                        target_links.append(link)
-                except:
-                    continue
+        items = soup_mbc.select("a.ClipCardV2_link_thumbnail__NWYf1")
+        
+        for item in items:
             if len(target_links) >= 10: break
-            driver.execute_script("window.scrollTo(0, document.body.scrollHeight);")
-            time.sleep(2)
-
-        wait = WebDriverWait(driver, 5)
-        success_count = 0
-
-        for link in target_links:
-            if success_count >= 3: break  # 목표치 3개 달성 시 종료
-            driver.get(link)
-            time.sleep(2)
-
             try:
-                click_more_button(driver, wait)
-                body = wait.until(EC.presence_of_element_located(
-                    (By.CSS_SELECTOR, "div.ArticleSection_scroll_wrap__ZaUDW"))).text.strip()
+                time_span = item.select_one("span.ClipCardV2_playtime__IHYFQ")
+                sec = parse_time_to_seconds(time_span.text) if time_span else 999
+                link = item.get("href")
+                if link and not link.startswith("http"):
+                    link = "https://tv.naver.com" + link
+                    
+                if 140 <= sec <= 170 and link not in target_links:
+                    target_links.append(link)
+            except:
+                continue
+
+        success_count = 0
+        for link in target_links:
+            if success_count >= 3: break
+            try:
+                res_detail = requests.get(link, headers=headers)
+                soup_detail = BeautifulSoup(res_detail.text, 'html.parser')
+                
+                # HTML 구조에서 본문 div 찾기 (부분 일치 검색)
+                body_div = soup_detail.select_one("div[class*='ArticleSection_scroll_wrap']")
+                if not body_div: # 혹시 클래스명이 다를 경우 대비
+                    body_div = soup_detail.select_one("div[class*='ArticleSection_description']")
+                
+                if not body_div: continue
+                
+                # get_text(separator="\n")를 쓰면 숨겨진 텍스트도 줄바꿈을 살려서 다 가져옵니다.
+                body = body_div.get_text(separator="\n").strip()
 
                 if "◀ 앵커 ▶" not in body: continue
                 if "◀ 리포트 ▶" in body: body = body.split("◀ 리포트 ▶")[0]
@@ -533,39 +528,44 @@ def generate_script(req: GenerateRequest, db: Session = Depends(get_db)):
                 continue
 
         # ----------------------------------------------------
-        # [2] 연합뉴스 단신 수집 (딱 7개, 무예독 없이 통합)
+        # [2] 연합뉴스 단신 수집 (딱 7개)
         # ----------------------------------------------------
         doc.add_heading('■ 단신 (총 7개 / 출처: 연합뉴스TV)', level=1)
-        driver.get("https://tv.naver.com/yonhapnewstv?tab=clip")
-        time.sleep(3)
+        res_yonhap = requests.get("https://tv.naver.com/yonhapnewstv?tab=clip", headers=headers)
+        soup_yonhap = BeautifulSoup(res_yonhap.text, 'html.parser')
 
         target_links = []
-        while len(target_links) < 15:  # 여유있게 확보
-            items = driver.find_elements(By.CSS_SELECTOR, "a.ClipCardV2_link_thumbnail__NWYf1")
-            for item in items:
-                if len(target_links) >= 15: break
-                try:
-                    title = item.get_attribute("aria-label")
-                    sec = parse_time_to_seconds(
-                        item.find_element(By.CSS_SELECTOR, "span.ClipCardV2_playtime__IHYFQ").text)
-                    link = item.get_attribute("href")
-                    # 40~53초 영상 중 속보 제외
-                    if 40 <= sec <= 53 and "[속보]" not in title and link not in target_links:
-                        target_links.append(link)
-                except:
-                    continue
+        items = soup_yonhap.select("a.ClipCardV2_link_thumbnail__NWYf1")
+        
+        for item in items:
             if len(target_links) >= 15: break
-            driver.execute_script("window.scrollTo(0, document.body.scrollHeight);")
-            time.sleep(2)
+            try:
+                title = item.get("aria-label", "")
+                time_span = item.select_one("span.ClipCardV2_playtime__IHYFQ")
+                sec = parse_time_to_seconds(time_span.text) if time_span else 999
+                link = item.get("href")
+                if link and not link.startswith("http"):
+                    link = "https://tv.naver.com" + link
+
+                if 40 <= sec <= 53 and "[속보]" not in title and link not in target_links:
+                    target_links.append(link)
+            except:
+                continue
 
         success_count = 0
         for link in target_links:
-            if success_count >= 7: break  # 목표치 7개 달성 시 종료
-            driver.get(link)
+            if success_count >= 7: break
             try:
-                click_more_button(driver, wait)
-                body = clean_script(wait.until(EC.presence_of_element_located(
-                    (By.CSS_SELECTOR, "div.ArticleSection_scroll_wrap__ZaUDW"))).text.strip())
+                res_detail = requests.get(link, headers=headers)
+                soup_detail = BeautifulSoup(res_detail.text, 'html.parser')
+
+                body_div = soup_detail.select_one("div[class*='ArticleSection_scroll_wrap']")
+                if not body_div:
+                    body_div = soup_detail.select_one("div[class*='ArticleSection_description']")
+
+                if not body_div: continue
+
+                body = clean_script(body_div.get_text(separator="\n").strip())
 
                 success_count += 1
                 p = doc.add_paragraph()
@@ -579,9 +579,9 @@ def generate_script(req: GenerateRequest, db: Session = Depends(get_db)):
             except:
                 continue
 
-    finally:
-        # 에러가 나더라도 무조건 크롬 브라우저를 닫아줍니다 (서버 터짐 방지)
-        driver.quit()
+    except Exception as e:
+        print(f"크롤링 에러 발생: {e}")
+        # 필요하다면 클라이언트에 에러를 던질 수 있습니다.
 
     # 3. 완성된 문서를 메모리에 저장하고 프론트엔드로 쏴주기
     stream = io.BytesIO()
