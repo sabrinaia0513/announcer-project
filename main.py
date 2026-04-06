@@ -402,14 +402,8 @@ class GenerateRequest(BaseModel): username: str; password: str
 
 
 # ==========================================
-# 🤖 [복구 완료!] 네이버TV 셀레니움 실시간 크롤링 (앵커 3 + 단신 7)
+# 🎙️ [새로 추가됨] 관리자 전용 대본 게시판 API
 # ==========================================
-from fastapi import APIRouter, Depends, HTTPException, UploadFile, File, Form
-from sqlalchemy.orm import Session
-from typing import List
-import shutil
-import os
-import uuid
 
 # (💡 주의: 관리자로 사용할 아이디를 아래 변수에 정확히 적어주세요!)
 ADMIN_USERNAME = "admin" 
