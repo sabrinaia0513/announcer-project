@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import axios from 'axios';
 import { BrowserRouter, Routes, Route, Link, useNavigate, useParams, useLocation } from 'react-router-dom';
+import ScriptBoard from './ScriptBoard';
 
 const CATEGORIES = ['자유', '스터디', '질문', '정보', '공고'];
 const AUTO_LOGOUT_TIME = 30 * 60 * 1000;
@@ -670,6 +671,7 @@ function App() {
             <Route path="/write" element={<WritePostPage currentUser={currentUser} />} />
             <Route path="/post/:id" element={<PostDetail currentUser={currentUser} />} />
             <Route path="/mypage" element={<MyPage currentUser={currentUser} setCurrentUser={setCurrentUser} />} />
+            <Route path="/scripts" element={<ScriptBoard />} />
           </Routes>
         </div>
       </div>
