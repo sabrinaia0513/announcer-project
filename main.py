@@ -425,175 +425,60 @@ class GenerateRequest(BaseModel): username: str; password: str
 # ==========================================
 # 🤖 [복구 완료!] 네이버TV 셀레니움 실시간 크롤링 (앵커 3 + 단신 7)
 # ==========================================
-class GenerateRequest(BaseModel):
-    username: str
-    password: str
+from fastapi import APIRouter, Depends, HTTPException, UploadFile, File, Form
+from sqlalchemy.orm import Session
+from typing import List
+import shutil
+import os
+import uuid
 
-# 💡 크롤링을 도와주는 헬퍼 함수들 (click_more_button은 이제 필요 없어서 삭제됨!)
-def parse_time_to_seconds(time_str):
-    try:
-        parts = time_str.split(':')
-        return int(parts[0]) * 60 + int(parts[1])
-    except:
-        return 999
+# (💡 주의: 관리자로 사용할 아이디를 아래 변수에 정확히 적어주세요!)
+ADMIN_USERNAME = "admin" 
 
-def clean_script(text):
-    text = re.sub(r'#\w+', '', text)
-    if "연합뉴스TV 기사문의" in text: text = text.split("연합뉴스TV 기사문의")[0]
-    return text.strip()
+# 1. [모든 유저] 대본 목록 불러오기 API
+@app.get("/scripts")
+def get_scripts(db: Session = Depends(get_db)):
+    # 최신 글이 맨 위에 오도록 정렬해서 가져옵니다.
+    scripts = db.query(database.Script).order_by(database.Script.created_at.desc()).all()
+    return scripts
 
-def set_style(run, font_name="Malgun Gothic", size=13, bold=False, color_rgb=None):
-    run.font.name = font_name
-    run._element.rPr.rFonts.set(qn('w:eastAsia'), font_name)
-    run.font.size = Pt(size)
-    run.font.bold = bold
-    if color_rgb: run.font.color.rgb = color_rgb
+# 2. [관리자 전용] 새 대본 업로드 API
+@app.post("/scripts")
+def create_script(
+    username: str = Form(...),  # 프론트엔드에서 보내는 현재 로그인한 아이디
+    title: str = Form(...),
+    content: str = Form(...),
+    file: UploadFile = File(None),
+    db: Session = Depends(get_db)
+):
+    # 🚨 관리자 아이디가 아니면 에러를 뱉고 쫓아냅니다!
+    if username != ADMIN_USERNAME:
+        raise HTTPException(status_code=403, detail="관리자만 대본을 업로드할 수 있습니다.")
 
-
-@app.post("/generate-script", summary="MBC/연합뉴스 BeautifulSoup 크롤링 원고 생성")
-def generate_script(req: GenerateRequest, db: Session = Depends(get_db)):
-    user = db.query(database.User).filter(database.User.username == req.username).first()
-    if not user or not auth.verify_password(req.password, user.hashed_password):
-        raise HTTPException(status_code=401, detail="인증 실패")
-
-    # 1. 네이버가 봇으로 인식하지 않게 사람처럼 위장하는 헤더 설정
-    headers = {
-        "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36"
-    }
-
-    # 2. 워드 문서 뼈대 만들기
-    doc = Document()
-    for sec in doc.sections:
-        sec.top_margin, sec.bottom_margin = Pt(40), Pt(40)
-        sec.left_margin, sec.right_margin = Pt(50), Pt(50)
-
-    try:
-        # ----------------------------------------------------
-        # [1] MBC 앵커멘트 수집 (딱 3개)
-        # ----------------------------------------------------
-        doc.add_heading('■ 앵커멘트 (총 3개 / 출처: MBC)', level=1)
-        res_mbc = requests.get("https://tv.naver.com/imnews?tab=clip", headers=headers)
-        soup_mbc = BeautifulSoup(res_mbc.text, 'html.parser')
-
-        target_links = []
-        items = soup_mbc.select("a.ClipCardV2_link_thumbnail__NWYf1")
+    file_url = None
+    if file:
+        # 파일 이름이 겹치지 않게 고유한 이름(uuid)을 붙여줍니다.
+        os.makedirs("uploads", exist_ok=True)
+        file_extension = file.filename.split(".")[-1]
+        unique_filename = f"{uuid.uuid4()}.{file_extension}"
+        file_path = f"uploads/{unique_filename}"
         
-        for item in items:
-            if len(target_links) >= 10: break
-            try:
-                time_span = item.select_one("span.ClipCardV2_playtime__IHYFQ")
-                sec = parse_time_to_seconds(time_span.text) if time_span else 999
-                link = item.get("href")
-                if link and not link.startswith("http"):
-                    link = "https://tv.naver.com" + link
-                    
-                if 140 <= sec <= 170 and link not in target_links:
-                    target_links.append(link)
-            except:
-                continue
+        with open(file_path, "wb") as buffer:
+            shutil.copyfileobj(file.file, buffer)
+        file_url = f"/uploads/{unique_filename}"
 
-        success_count = 0
-        for link in target_links:
-            if success_count >= 3: break
-            try:
-                res_detail = requests.get(link, headers=headers)
-                soup_detail = BeautifulSoup(res_detail.text, 'html.parser')
-                
-                # HTML 구조에서 본문 div 찾기 (부분 일치 검색)
-                body_div = soup_detail.select_one("div[class*='ArticleSection_scroll_wrap']")
-                if not body_div: # 혹시 클래스명이 다를 경우 대비
-                    body_div = soup_detail.select_one("div[class*='ArticleSection_description']")
-                
-                if not body_div: continue
-                
-                # get_text(separator="\n")를 쓰면 숨겨진 텍스트도 줄바꿈을 살려서 다 가져옵니다.
-                body = body_div.get_text(separator="\n").strip()
-
-                if "◀ 앵커 ▶" not in body: continue
-                if "◀ 리포트 ▶" in body: body = body.split("◀ 리포트 ▶")[0]
-                if "◀ 기자 ▶" in body: body = body.split("◀ 기자 ▶")[0]
-
-                body = clean_script(re.sub(r'\[.*?\]', '', body).replace("◀ 앵커 ▶", ""))
-
-                success_count += 1
-                p = doc.add_paragraph()
-                run_title = p.add_run(f"<앵커멘트 {success_count}>\n")
-                set_style(run_title, size=14, bold=True, color_rgb=RGBColor(0, 112, 192))
-
-                run_body = p.add_run(body)
-                set_style(run_body, size=13)
-                p.paragraph_format.line_spacing = 1.6
-                p.paragraph_format.space_after = Pt(20)
-            except:
-                continue
-
-        # ----------------------------------------------------
-        # [2] 연합뉴스 단신 수집 (딱 7개)
-        # ----------------------------------------------------
-        doc.add_heading('■ 단신 (총 7개 / 출처: 연합뉴스TV)', level=1)
-        res_yonhap = requests.get("https://tv.naver.com/yonhapnewstv?tab=clip", headers=headers)
-        soup_yonhap = BeautifulSoup(res_yonhap.text, 'html.parser')
-
-        target_links = []
-        items = soup_yonhap.select("a.ClipCardV2_link_thumbnail__NWYf1")
-        
-        for item in items:
-            if len(target_links) >= 15: break
-            try:
-                title = item.get("aria-label", "")
-                time_span = item.select_one("span.ClipCardV2_playtime__IHYFQ")
-                sec = parse_time_to_seconds(time_span.text) if time_span else 999
-                link = item.get("href")
-                if link and not link.startswith("http"):
-                    link = "https://tv.naver.com" + link
-
-                if 40 <= sec <= 53 and "[속보]" not in title and link not in target_links:
-                    target_links.append(link)
-            except:
-                continue
-
-        success_count = 0
-        for link in target_links:
-            if success_count >= 7: break
-            try:
-                res_detail = requests.get(link, headers=headers)
-                soup_detail = BeautifulSoup(res_detail.text, 'html.parser')
-
-                body_div = soup_detail.select_one("div[class*='ArticleSection_scroll_wrap']")
-                if not body_div:
-                    body_div = soup_detail.select_one("div[class*='ArticleSection_description']")
-
-                if not body_div: continue
-
-                body = clean_script(body_div.get_text(separator="\n").strip())
-
-                success_count += 1
-                p = doc.add_paragraph()
-                run_title = p.add_run(f"<단신 {success_count}>\n")
-                set_style(run_title, size=14, bold=True, color_rgb=RGBColor(0, 112, 192))
-
-                run_body = p.add_run(body)
-                set_style(run_body, size=13)
-                p.paragraph_format.line_spacing = 1.6
-                p.paragraph_format.space_after = Pt(20)
-            except:
-                continue
-
-    except Exception as e:
-        print(f"크롤링 에러 발생: {e}")
-        # 필요하다면 클라이언트에 에러를 던질 수 있습니다.
-
-    # 3. 완성된 문서를 메모리에 저장하고 프론트엔드로 쏴주기
-    stream = io.BytesIO()
-    doc.save(stream)
-    stream.seek(0)
-
-    return StreamingResponse(
-        stream,
-        media_type="application/vnd.openxmlformats-officedocument.wordprocessingml.document",
-        headers={"Content-Disposition": "attachment; filename=Announcer_Script.docx"}
+    # DB에 저장
+    new_script = database.Script(
+        title=title,
+        content=content,
+        file_url=file_url
     )
-
+    db.add(new_script)
+    db.commit()
+    db.refresh(new_script)
+    
+    return {"message": "대본이 성공적으로 업로드되었습니다!"}
+  
 if __name__ == "__main__":
     import uvicorn
 
