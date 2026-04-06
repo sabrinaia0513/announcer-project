@@ -1,54 +1,33 @@
-import io
-import requests
-import io
-import re
-import time
-from fastapi.responses import StreamingResponse
-from docx import Document
-from docx.shared import Pt, RGBColor
-from docx.oxml.ns import qn
-from selenium import webdriver
-from selenium.webdriver.common.by import By
-from selenium.webdriver.chrome.service import Service
-from selenium.webdriver.chrome.options import Options
-from selenium.webdriver.support.ui import WebDriverWait
-from selenium.webdriver.support import expected_conditions as EC
-from webdriver_manager.chrome import ChromeDriverManager
-from bs4 import BeautifulSoup
-from docx import Document
-from docx.shared import Pt
-from fastapi.responses import StreamingResponse
-from fastapi import FastAPI, Depends, HTTPException, status, File, UploadFile, WebSocket, WebSocketDisconnect
+import os, shutil, uuid, json
+from typing import Optional
+
+from fastapi import FastAPI, Depends, HTTPException, status, File, UploadFile, Form, WebSocket, WebSocketDisconnect
 from fastapi.middleware.cors import CORSMiddleware
-from fastapi.responses import FileResponse
 from fastapi.staticfiles import StaticFiles
 from sqlalchemy.orm import Session
 from pydantic import BaseModel
-from typing import Optional
-import os, shutil, uuid, json
-import database
-import auth
-from fastapi import APIRouter, Depends, HTTPException
-from fastapi.responses import StreamingResponse
-from docx.shared import Pt, RGBColor
-from docx.oxml.ns import qn
 
-# 본인 프로젝트에 맞게 auth, database, get_db 등은 기존대로 import 되어 있어야 합니다.
-import auth
 import database
+import auth
 from database import get_db
 
 app = FastAPI()
-app.add_middleware(CORSMiddleware, allow_origins=["*"], allow_credentials=True, allow_methods=["*"],
-                   allow_headers=["*"])
 
+# 1. CORS 설정 (프론트엔드 연결 허용)
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["*"],
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"]
+)
+
+# 2. 이미지/첨부파일 저장용 폴더 세팅
 os.makedirs("uploads", exist_ok=True)
-
-if not os.path.exists("uploads"): os.makedirs("uploads")
 app.mount("/uploads", StaticFiles(directory="uploads"), name="uploads")
 
+# 3. DB 테이블 생성
 database.create_tables()
-
 
 def get_db():
     db = database.SessionLocal()
