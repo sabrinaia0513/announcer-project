@@ -29,14 +29,13 @@ const calculateDday = (deadline) => {
 };
 
 // ==========================================
-// 🧭 [새로 추가됨] 상단 네비게이션 바 (햄버거 메뉴 포함)
+// 🧭 상단 네비게이션 바 (햄버거 메뉴 포함)
 // ==========================================
 function Navbar({ currentUser, handleLogout, notifications, setNotifications }) {
   const [isMenuOpen, setIsMenuOpen] = useState(false);
   const [showNotiDropdown, setShowNotiDropdown] = useState(false);
   const location = useLocation();
 
-  // 페이지가 이동하면 열려있던 메뉴들을 자동으로 닫아줍니다.
   useEffect(() => {
     setIsMenuOpen(false);
     setShowNotiDropdown(false);
@@ -45,12 +44,10 @@ function Navbar({ currentUser, handleLogout, notifications, setNotifications }) 
   return (
     <nav className="fixed top-0 left-0 w-full bg-white shadow-sm z-50 border-b border-gray-200">
       <div className="max-w-3xl mx-auto px-4 h-16 flex justify-between items-center">
-        {/* 로고 */}
         <Link to="/" className="font-extrabold text-xl text-blue-600 tracking-tight flex items-center gap-1">
           🎙️ <span className="hidden sm:inline">아나운서 커뮤니티</span><span className="sm:hidden">아나커뮤</span>
         </Link>
 
-        {/* 우측 아이콘 및 햄버거 메뉴 */}
         <div className="flex items-center gap-4 text-gray-700">
           {currentUser && (
             <div className="relative">
@@ -68,15 +65,12 @@ function Navbar({ currentUser, handleLogout, notifications, setNotifications }) 
               )}
             </div>
           )}
-
-          {/* 햄버거 버튼 */}
           <button onClick={() => setIsMenuOpen(!isMenuOpen)} className="text-2xl hover:text-blue-600 transition-colors focus:outline-none">
             {isMenuOpen ? '✕' : '☰'}
           </button>
         </div>
       </div>
 
-      {/* 💡 햄버거 메뉴를 누르면 스르륵 내려오는 모바일 메뉴판 */}
       {isMenuOpen && (
         <div className="absolute top-16 left-0 w-full bg-white border-b border-gray-200 shadow-lg flex flex-col p-4 gap-2 animate-fade-in-down">
           {currentUser ? (
@@ -86,8 +80,10 @@ function Navbar({ currentUser, handleLogout, notifications, setNotifications }) 
                 <span className="font-bold text-gray-800">{currentUser.nickname}님</span>
                 <span className="text-xs bg-indigo-100 text-indigo-700 font-bold px-2 py-1 rounded-md">{currentUser.level}</span>
               </div>
-              <Link to="/write" className="w-full py-3 bg-blue-600 text-white text-center font-bold rounded-lg shadow-sm">✍️ 새 글 작성하기</Link>
-              <Link to="/mypage" className="w-full py-3 bg-gray-100 text-gray-800 text-center font-bold rounded-lg">내 정보 / 마이페이지</Link>
+              {/* 💡 수정된 부분: 오늘의 대본 메뉴 추가! */}
+              <Link to="/scripts" className="w-full py-3 bg-indigo-50 text-indigo-700 text-center font-bold rounded-lg shadow-sm">🎙️ 오늘의 대본 (연습용)</Link>
+              <Link to="/write" className="w-full py-3 bg-blue-600 text-white text-center font-bold rounded-lg shadow-sm mt-1">✍️ 새 글 작성하기</Link>
+              <Link to="/mypage" className="w-full py-3 bg-gray-100 text-gray-800 text-center font-bold rounded-lg mt-1">내 정보 / 마이페이지</Link>
               <button onClick={handleLogout} className="w-full py-3 bg-red-50 text-red-600 font-bold rounded-lg mt-2">로그아웃</button>
             </>
           ) : (
@@ -103,7 +99,7 @@ function Navbar({ currentUser, handleLogout, notifications, setNotifications }) 
 }
 
 // ==========================================
-// 💬 실시간 채팅 위젯 (기존 동일)
+// 💬 실시간 채팅 위젯
 // ==========================================
 function ChatWidget({ currentUser }) {
   const [isOpen, setIsOpen] = useState(false);
@@ -162,7 +158,7 @@ function ChatWidget({ currentUser }) {
 }
 
 // ==========================================
-// 🔑 [새로 추가됨] 로그인 전용 페이지 (LoginPage)
+// 🔑 로그인 전용 페이지 (LoginPage)
 // ==========================================
 function LoginPage({ setCurrentUser }) {
   const [isLoginMode, setIsLoginMode] = useState(true);
@@ -179,7 +175,7 @@ function LoginPage({ setCurrentUser }) {
       localStorage.setItem('announcer_user', JSON.stringify(userData));
       setCurrentUser(userData);
       alert(`${response.data.nickname}님, 환영합니다!`);
-      navigate('/'); // 로그인 성공 시 메인으로 이동
+      navigate('/');
     } catch (error) { alert("로그인 실패: 아이디와 비밀번호를 확인해주세요."); }
   };
 
@@ -211,7 +207,7 @@ function LoginPage({ setCurrentUser }) {
 }
 
 // ==========================================
-// ✍️ [새로 추가됨] 글쓰기 전용 페이지 (WritePostPage)
+// ✍️ 글쓰기 전용 페이지 (WritePostPage)
 // ==========================================
 function WritePostPage({ currentUser }) {
   const navigate = useNavigate();
@@ -223,7 +219,6 @@ function WritePostPage({ currentUser }) {
   const [externalLink, setExternalLink] = useState('');
   const [isUploading, setIsUploading] = useState(false);
 
-  // 비로그인 유저가 접근하면 튕겨냅니다.
   useEffect(() => { if (!currentUser) { alert("로그인이 필요한 페이지입니다."); navigate('/login'); } }, [currentUser, navigate]);
 
   const handleSubmit = async (e) => {
@@ -241,7 +236,7 @@ function WritePostPage({ currentUser }) {
         deadline: category === '공고' ? deadline : null, external_link: category === '공고' ? externalLink : null
       });
       alert("글이 등록되었습니다! (+10점)");
-      navigate('/'); // 작성 완료 후 메인으로 자동 이동
+      navigate('/');
     } catch (error) { alert("작성 실패"); } finally { setIsUploading(false); }
   };
 
@@ -256,12 +251,10 @@ function WritePostPage({ currentUser }) {
           <label className="block text-sm font-bold text-gray-700 mb-2">게시판 카테고리</label>
           <select value={category} onChange={(e) => setCategory(e.target.value)} className={`${inputStyle} bg-white font-bold`}>{CATEGORIES.map(cat => <option key={cat} value={cat}>[{cat}] 게시판</option>)}</select>
         </div>
-
         <div>
           <label className="block text-sm font-bold text-gray-700 mb-2">제목</label>
           <input type="text" placeholder="제목을 입력하세요" value={title} onChange={(e) => setTitle(e.target.value)} required className={inputStyle} />
         </div>
-
         {category === '공고' && (
           <div className="flex flex-col sm:flex-row gap-4 bg-red-50 p-5 rounded-xl border border-red-100">
             <div className="w-full sm:w-1/3">
@@ -274,17 +267,14 @@ function WritePostPage({ currentUser }) {
             </div>
           </div>
         )}
-
         <div>
           <label className="block text-sm font-bold text-gray-700 mb-2">내용</label>
           <textarea placeholder="내용을 자유롭게 남겨주세요" value={content} onChange={(e) => setContent(e.target.value)} required rows="6" className={`${inputStyle} resize-none`} />
         </div>
-
         <div className="p-4 bg-gray-50 border border-gray-200 rounded-xl">
           <label className="block text-sm font-bold text-gray-700 mb-2">📎 첨부 파일 (선택)</label>
           <input type="file" accept="image/*, audio/*, video/*" onChange={(e) => setFile(e.target.files[0])} className="w-full text-sm text-gray-500 file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0 file:text-sm file:font-semibold file:bg-blue-50 file:text-blue-700 hover:file:bg-blue-100 cursor-pointer" />
         </div>
-
         <div className="pt-4">
           <button type="submit" disabled={isUploading} className={`w-full py-4 text-white text-lg font-extrabold rounded-xl shadow-md transition-all ${isUploading ? 'bg-gray-400 cursor-not-allowed' : 'bg-blue-600 hover:bg-blue-700 hover:-translate-y-1'}`}>
             {isUploading ? '업로드 중...' : '게시글 등록하기'}
@@ -307,7 +297,6 @@ function Home({ currentUser }) {
   const [currentPage, setCurrentPage] = useState(1);
   const [searchInput, setSearchInput] = useState('');
   const [searchKeyword, setSearchKeyword] = useState('');
-  const [isGenerating, setIsGenerating] = useState(false);
   const navigate = useNavigate();
 
   useEffect(() => { fetchPosts(); fetchAnnouncements(); }, [selectedTab, currentPage, searchKeyword, sortBy]);
@@ -324,21 +313,12 @@ function Home({ currentUser }) {
     try { const response = await axios.get('https://announcer-project.onrender.com/announcements'); setAnnouncements(response.data); } catch (error) {}
   };
 
-  const handleGenerateScript = async () => {
-    if (!currentUser) return alert("로그인이 필요합니다.");
-    setIsGenerating(true);
-    try {
-      const response = await axios.post('https://announcer-project.onrender.com/generate-script', { username: currentUser.username, password: currentUser.password }, { responseType: 'blob' });
-      const url = window.URL.createObjectURL(new Blob([response.data]));
-      const link = document.createElement('a'); link.href = url; link.setAttribute('download', `Script_${new Date().getTime()}.docx`); document.body.appendChild(link); link.click(); link.remove(); window.URL.revokeObjectURL(url);
-    } catch (error) { alert("생성 실패"); } finally { setIsGenerating(false); }
-  };
+  // 💡 수정된 부분: 에러를 유발하는 기존 크롤링 함수(handleGenerateScript) 삭제 완료!
 
   const totalPages = Math.ceil(totalPosts / POSTS_PER_PAGE);
 
   return (
     <div className="space-y-8 relative">
-      {/* 🚀 D-Day 전광판 */}
       <div className="bg-gray-900 rounded-2xl p-6 shadow-lg overflow-hidden relative">
         <div className="absolute top-0 right-0 w-32 h-32 bg-blue-500 rounded-full mix-blend-multiply filter blur-2xl opacity-30 animate-pulse"></div>
         <h2 className="text-xl font-extrabold text-white mb-4 flex items-center gap-2 relative z-10"><span></span> <span>공채 D-Day 전광판</span></h2>
@@ -357,14 +337,19 @@ function Home({ currentUser }) {
         </div>
       </div>
 
+      {/* 💡 수정된 부분: 백엔드 API 변경에 맞춰 [오늘의 대본 게시판]으로 바로가는 배너로 교체! */}
       {currentUser && (
         <div className="bg-gradient-to-r from-blue-50 to-indigo-50 p-6 sm:p-8 rounded-2xl shadow-sm border border-blue-100 text-center space-y-4">
-          <h2 className="text-xl sm:text-2xl font-bold text-blue-800">오늘의 원고 뽑기 (약 1~2분 소요)</h2>
-          <button onClick={handleGenerateScript} disabled={isGenerating} className={`w-full sm:w-auto px-8 py-4 rounded-full font-bold text-white text-base sm:text-lg transition-all shadow-md ${isGenerating ? 'bg-gray-400' : 'bg-blue-600 hover:bg-blue-700'}`}>{isGenerating ? '수집 중...' : ' 대본 다운로드'}</button>
+          <h2 className="text-xl sm:text-2xl font-bold text-blue-800">🎙️ 매일 업데이트되는 고퀄리티 대본!</h2>
+          <button 
+            onClick={() => navigate('/scripts')} 
+            className="w-full sm:w-auto px-8 py-4 rounded-full font-bold text-white text-base sm:text-lg transition-all shadow-md bg-blue-600 hover:bg-blue-700"
+          >
+            오늘의 대본 게시판 가기 →
+          </button>
         </div>
       )}
 
-      {/* 💡 [핵심] 우측 하단 둥근 글쓰기 플로팅 버튼 (모바일에 최적화!) */}
       {currentUser && (
         <button
           onClick={() => navigate('/write')}
@@ -424,11 +409,8 @@ function Home({ currentUser }) {
 }
 
 // ==========================================
-// 📄 화면 2: PostDetail, 화면 3: MyPage (기존과 동일하게 유지)
+// 📄 화면 2: PostDetail, 화면 3: MyPage
 // ==========================================
-// (지면상 PostDetail과 MyPage 컴포넌트는 직전에 작성하신 코드와 100% 동일하므로 그대로 복사해 넣으시면 됩니다!
-// 코드가 너무 길어져서 잘릴 수 있으니 App 컴포넌트 바로 위까지 기존 코드를 유지해 주세요.)
-
 function PostDetail({ currentUser }) {
   const { id } = useParams();
   const navigate = useNavigate();
@@ -623,7 +605,6 @@ function App() {
     if (savedUser) setCurrentUser(JSON.parse(savedUser));
   }, []);
 
-  // 글로벌 웹소켓 알림 수신기
   useEffect(() => {
     let wsNotify;
     if (currentUser) {
@@ -631,12 +612,10 @@ function App() {
       wsNotify.onmessage = (event) => {
         const data = JSON.parse(event.data);
         setNotifications((prev) => [data, ...prev]);
-        // 간단한 네이티브 브라우저 알림 (모바일에서 효과적)
         if (Notification.permission === 'granted') {
           new Notification('새로운 알림', { body: data.text });
         }
       };
-      // 알림 권한 요청 (처음 1회)
       if (Notification.permission !== 'denied') Notification.requestPermission();
     }
     return () => { if (wsNotify) wsNotify.close(); };
@@ -651,7 +630,6 @@ function App() {
 
   return (
     <BrowserRouter>
-      {/* 💡 상단 고정 네비게이션 바 */}
       <Navbar
         currentUser={currentUser}
         handleLogout={handleLogout}
@@ -661,12 +639,10 @@ function App() {
 
       <ChatWidget currentUser={currentUser} />
 
-      {/* 💡 상단 Navbar(높이 64px) 때문에 콘텐츠가 가려지지 않도록 pt-24 (패딩 탑) 추가 */}
       <div className="min-h-screen bg-gray-50 pt-24 pb-10 px-4 font-sans text-gray-800">
         <div className="max-w-3xl mx-auto">
           <Routes>
             <Route path="/" element={<Home currentUser={currentUser} />} />
-            {/* 💡 로그인과 글쓰기를 별도 페이지로 분리! */}
             <Route path="/login" element={<LoginPage setCurrentUser={setCurrentUser} />} />
             <Route path="/write" element={<WritePostPage currentUser={currentUser} />} />
             <Route path="/post/:id" element={<PostDetail currentUser={currentUser} />} />
