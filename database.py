@@ -68,6 +68,15 @@ class Comment(Base):
     post = relationship("Post", back_populates="comments")
     likes = relationship("CommentLike", back_populates="comment", cascade="all, delete-orphan")
 
+class Script(Base):
+    __tablename__ = "scripts"
+
+    id = Column(Integer, primary_key=True, index=True)
+    title = Column(String, index=True)       # 대본 제목 (예: [KBS] 9시 뉴스 앵커멘트)
+    content = Column(Text)                   # 대본 본문 내용
+    file_url = Column(String, nullable=True) # 첨부된 원고 파일(PDF, docx 등) 주소
+    created_at = Column(DateTime, default=datetime.utcnow) # 올린 시간
+
 from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker
 SQLALCHEMY_DATABASE_URL = "sqlite:///./community.db"
