@@ -1,8 +1,8 @@
 import React, { useState, useEffect } from 'react';
 import axios from 'axios';
 
-// 🚨 주의: 아래 주소를 현봉님의 진짜 Render 주소로 꼭! 바꿔주세요 (끝에 슬래시 없음)
-const API_URL = "https://announcer-project-여기에현봉님주소.onrender.com";
+// 💡 수정됨: 올바른 Render 백엔드 주소로 변경
+const API_URL = "https://announcer-project.onrender.com";
 
 function ScriptBoard() {
   const [scripts, setScripts] = useState([]);
@@ -10,12 +10,13 @@ function ScriptBoard() {
   const [content, setContent] = useState('');
   const [file, setFile] = useState(null);
   
-  // 💡 수정됨: 'announcer_user' 보관함에서 정확하게 아이디를 꺼내옵니다!
+  // 'announcer_user' 보관함에서 정확하게 아이디를 꺼내옵니다.
   const savedUser = localStorage.getItem('announcer_user');
   const currentUser = savedUser ? JSON.parse(savedUser) : null;
   const currentUsername = currentUser ? currentUser.username : null;
-  // 관리자 여부 확인 (백엔드의 ADMIN_USERNAME과 똑같이 맞춰주세요!)
-  const isAdmin = currentUsername === "admin";
+  
+  // 💡 수정됨: 백엔드 main.py의 아이디와 동일하게 "sabrinaia"로 변경
+  const isAdmin = currentUsername === "sabrinaia";
 
   // 화면이 켜지면 대본 목록을 서버에서 불러옵니다.
   useEffect(() => {
