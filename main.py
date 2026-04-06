@@ -406,7 +406,7 @@ class GenerateRequest(BaseModel): username: str; password: str
 # ==========================================
 
 # (💡 주의: 관리자로 사용할 아이디를 아래 변수에 정확히 적어주세요!)
-ADMIN_USERNAME = "admin" 
+ADMIN_USERNAME = "sabrinaia" 
 
 # 1. [모든 유저] 대본 목록 불러오기 API
 @app.get("/scripts")
