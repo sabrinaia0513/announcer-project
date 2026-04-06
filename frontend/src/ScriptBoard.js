@@ -10,8 +10,10 @@ function ScriptBoard() {
   const [content, setContent] = useState('');
   const [file, setFile] = useState(null);
   
-  // 현재 로그인한 사용자의 아이디를 가져옵니다 (없으면 null)
-  const currentUsername = localStorage.getItem('username');
+  // 💡 수정됨: 'announcer_user' 보관함에서 정확하게 아이디를 꺼내옵니다!
+  const savedUser = localStorage.getItem('announcer_user');
+  const currentUser = savedUser ? JSON.parse(savedUser) : null;
+  const currentUsername = currentUser ? currentUser.username : null;
   // 관리자 여부 확인 (백엔드의 ADMIN_USERNAME과 똑같이 맞춰주세요!)
   const isAdmin = currentUsername === "admin";
 
